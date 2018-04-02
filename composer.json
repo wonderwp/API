@@ -23,7 +23,7 @@
         "johnpbloch/wordpress": "^4.7"
     },
     "autoload": {
-        "psr-4": {"WonderWp\\Component\\Routing\\": "src"},
+        "psr-4": {"WonderWp\\Component\\API\\": "src"},
         "exclude-from-classmap": [
             "/tests/"
         ]
