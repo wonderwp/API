@@ -4,8 +4,9 @@ namespace WonderWp\Component\API;
 
 use WonderWp\Component\HttpFoundation\Request;
 use WonderWp\Component\HttpFoundation\Result;
+use WonderWp\Component\Service\AbstractService;
 
-abstract class AbstractApiService implements ApiServiceInterface
+abstract class AbstractApiService extends AbstractService implements ApiServiceInterface
 {
     /** @var Request */
     protected $request;
@@ -18,23 +19,33 @@ abstract class AbstractApiService implements ApiServiceInterface
     /** @inheritdoc */
     public function registerEndpoints()
     {
-        $exclude   = ['__construct', 'registerEndpoints'];
         $className = (new \ReflectionClass($this))->getShortName();
-        $methods   = array_diff(get_class_methods($this), $exclude);
-
+        $methods = $this->listEndPoints();
         foreach ($methods as $method) {
             add_action('wp_ajax_' . $className . '.' . $method, function () use ($method) {
-                $this->setRequest(Request::getInstance());
-                call_user_func([$this, $method]);
-                wp_die();
+                $this->executeEndPoint($method);
             });
 
             add_action('wp_ajax_nopriv_' . $className . '.' . $method, function () use ($method) {
-                $this->setRequest(Request::getInstance());
-                call_user_func([$this, $method]);
-                wp_die();
+                $this->executeEndPoint($method);
             });
         }
+        return $methods;
+    }
+
+    protected function executeEndPoint($method){
+        $this->setRequest(Request::getInstance());
+        call_user_func([$this, $method]);
+        wp_die();
+    }
+
+    /**
+     * @return array
+     */
+    protected function listEndPoints(){
+        $exclude   = ['__construct', 'registerEndpoints','listEndPoints'];
+        $methods   = array_diff(get_class_methods($this), $exclude);
+        return $methods;
     }
 
     /**
@@ -55,7 +66,9 @@ abstract class AbstractApiService implements ApiServiceInterface
     public function respond(Result $result, $format = 'json')
     {
         if ($format === 'json') {
-            header('Content-Type: application/json');
+            if(!headers_sent()){
+                header('Content-Type: application/json');
+            }
             echo $result;
         }
 
