@@ -2,9 +2,12 @@
 
 namespace WonderWp\Component\API;
 
+use WonderWp\Component\API\Annotation\WPApiEndpoint;
 use WonderWp\Component\HttpFoundation\Request;
 use WonderWp\Component\HttpFoundation\Result;
 use WonderWp\Component\Service\AbstractService;
+use Doctrine\Common\Annotations\AnnotationReader;
+use Doctrine\Common\Annotations\AnnotationRegistry;
 
 abstract class AbstractApiService extends AbstractService implements ApiServiceInterface
 {
@@ -19,16 +22,22 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
     /** @inheritdoc */
     public function registerEndpoints()
     {
-        $className = (new \ReflectionClass($this))->getShortName();
+        AnnotationRegistry::registerLoader('class_exists');
+        $reader = new AnnotationReader();
+
+        $reflection = new \ReflectionClass($this);
+        $className = $reflection->getShortName();
+
         $methods = $this->listEndPoints();
         foreach ($methods as $method) {
-            add_action('wp_ajax_' . $className . '.' . $method, function () use ($method) {
-                $this->executeEndPoint($method);
-            });
 
-            add_action('wp_ajax_nopriv_' . $className . '.' . $method, function () use ($method) {
-                $this->executeEndPoint($method);
-            });
+            $apiEndpointAnnotation = $reader->getMethodAnnotation($reflection->getMethod($method), WPApiEndpoint::class);
+
+            if ($apiEndpointAnnotation !== null) {
+                $this->registerWPApiEndpoint($apiEndpointAnnotation, $reflection->getName(), $method);
+            } else {
+                $this->registerAdminEndpoint($className, $method);
+            }
         }
         return $methods;
     }
@@ -87,5 +96,33 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
         } else {
             return $this->request->request->get($paramName);
         }
+    }
+
+    protected function registerWPApiEndpoint(WPApiEndpoint $apiEndpointAnnotation, $className, $method) {
+        add_action( 'rest_api_init', function () use ($apiEndpointAnnotation, $className, $method) {
+            $namespace = $apiEndpointAnnotation->namespace.'/'.$apiEndpointAnnotation->version;
+            $handler = [$this, $method];
+
+            register_rest_route( $namespace, $apiEndpointAnnotation->url, [
+                'methods' => $apiEndpointAnnotation->method,
+                'callback' => $handler,
+                'args' => $apiEndpointAnnotation->args
+            ] );
+        } );
+    }
+
+    /**
+     * @param string $className
+     * @param $method
+     */
+    protected function registerAdminEndpoint( $className, $method)
+    {
+        add_action('wp_ajax_' . $className . '.' . $method, function () use ($method) {
+            $this->executeEndPoint($method);
+        });
+
+        add_action('wp_ajax_nopriv_' . $className . '.' . $method, function () use ($method) {
+            $this->executeEndPoint($method);
+        });
     }
 }
