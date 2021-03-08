@@ -99,5 +99,5 @@ class QuestionApiService extends AbstractApiService
 
 ### Important notice
 
-For `sanitize_callback`, `validate_callback` and `permission_callback`, we are looking for an instance method on the same class of the annotation.
+Because we cannot reference `$this` from within an annotation, for any callback function specified inside a @WPApiEndpoint annotation, be it `sanitize_callback`, `validate_callback`, `permission_callback` and so on, the provided callback name (for example `myFunction`), is first looked for on the same class instance than the method carrying out the annotation. If not found there, it's then looked for on the global namespace (like a function name)
 In second time, we look for a global function.
