@@ -2,6 +2,7 @@
 
 namespace WonderWp\Component\API\Annotation;
 
+
 /**
  * @Annotation
  * @Target({"METHOD"})
@@ -9,7 +10,6 @@ namespace WonderWp\Component\API\Annotation;
 class WPApiEndpoint
 {
     /**
-     * @Required
      * @var string
      */
     public $namespace;
@@ -24,12 +24,6 @@ class WPApiEndpoint
      * @var string
      */
     public $url;
-
-    /**
-     * @Required
-     * @var string
-     */
-    public $method;
 
     /**
      * @var array
