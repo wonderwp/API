@@ -122,6 +122,7 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
             $handler = [$this, $method];
 
             $computedArgs = $this->recursiveBuildCallable($apiEndpointAnnotation->args);
+            $computedArgs = $this->addRequiredArguments($computedArgs);
             $computedArgs['callback'] = $handler;
 
             register_rest_route($namespaceAndVersion, $apiEndpointAnnotation->url, $computedArgs);
@@ -154,6 +155,14 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
                     $args[$param] = [$this, $arg];
                 }
             }
+        }
+
+        return $args;
+    }
+
+    private function addRequiredArguments($args = []) {
+        if (!isset($args['permission_callback'])) {
+            $args['permission_callback'] = '__return_true';
         }
 
         return $args;
