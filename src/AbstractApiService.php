@@ -15,7 +15,7 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
 {
     /** @var Request */
     protected $request;
-
+ 
     protected function enableErrors()
     {
         error_reporting(E_ALL);
