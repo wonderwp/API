@@ -2,31 +2,14 @@
 
 namespace WonderWp\Component\API\Annotation;
 
-
-/**
- * @Annotation
- * @Target({"METHOD"})
- */
+#[\Attribute(\Attribute::TARGET_METHOD)]
 class WPApiEndpoint
 {
-    /**
-     * @var string
-     */
-    public $namespace;
-
-    /**
-     * @var string
-     */
-    public $version = 'v1';
-
-    /**
-     * @Required
-     * @var string
-     */
-    public $url;
-
-    /**
-     * @var array
-     */
-    public $args = [];
+    public function __construct(
+        public string $url,
+        public ?string $namespace = null,
+        public string $version = 'v1',
+        public array $args = [],
+    ) {
+    }
 }

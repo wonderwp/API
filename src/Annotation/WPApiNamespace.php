@@ -2,14 +2,11 @@
 
 namespace WonderWp\Component\API\Annotation;
 
-/**
- * @Annotation
- * @Target({"CLASS"})
- */
+#[\Attribute(\Attribute::TARGET_CLASS)]
 class WPApiNamespace
 {
-    /**
-     * @var string
-     */
-    public $namespace;
+    public function __construct(
+        public ?string $namespace = null,
+    ) {
+    }
 }
