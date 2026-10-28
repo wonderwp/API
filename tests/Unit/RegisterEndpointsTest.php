@@ -7,6 +7,7 @@ namespace WonderWp\Component\API\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 use WonderWp\Component\API\Tests\Fixtures\AttributeApiService;
 use WonderWp\Component\API\Tests\Fixtures\DefaultPermissionApiService;
+use WonderWp\Component\API\Tests\Fixtures\DeniedPermissionApiService;
 use WonderWp\Component\API\Tests\Fixtures\MissingNamespaceApiService;
 
 final class RegisterEndpointsTest extends TestCase
@@ -49,6 +50,18 @@ final class RegisterEndpointsTest extends TestCase
         $route = $this->findRoute('wwp-perm/v1', '/open');
         $this->assertNotNull($route);
         $this->assertSame('__return_true', $route['args']['permission_callback']);
+    }
+
+    public function testPermissionCallbackCanDenyRequest(): void
+    {
+        $service = new DeniedPermissionApiService();
+        $service->registerEndpoints();
+        WpHookSpy::fire('rest_api_init');
+
+        $route = $this->findRoute('wwp-deny/v1', '/secret');
+        $this->assertNotNull($route);
+        $this->assertSame([$service, 'isRequestAuthorized'], $route['args']['permission_callback']);
+        $this->assertFalse(call_user_func($route['args']['permission_callback']));
     }
 
     public function testMissingNamespaceThrowsWhenRestApiInitFires(): void
