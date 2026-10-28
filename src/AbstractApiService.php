@@ -2,9 +2,6 @@
 
 namespace WonderWp\Component\API;
 
-use Doctrine\Common\Annotations\AnnotationException;
-use Doctrine\Common\Annotations\AnnotationReader;
-use Doctrine\Common\Annotations\AnnotationRegistry;
 use WonderWp\Component\API\Annotation\WPApiEndpoint;
 use WonderWp\Component\API\Annotation\WPApiNamespace;
 use WonderWp\Component\HttpFoundation\Request;
@@ -15,7 +12,7 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
 {
     /** @var Request */
     protected $request;
- 
+
     protected function enableErrors()
     {
         error_reporting(E_ALL);
@@ -25,26 +22,38 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
     /** @inheritdoc */
     public function registerEndpoints()
     {
-        AnnotationRegistry::registerLoader('class_exists');
-        $reader = new AnnotationReader();
-
         $reflection = new \ReflectionClass($this);
         $className = $reflection->getShortName();
 
+        $apiNamespaceAttribute = $this->readAttribute($reflection, WPApiNamespace::class);
+
         $methods = $this->listEndPoints();
         foreach ($methods as $method) {
+            $apiEndpointAttribute = $this->readAttribute($reflection->getMethod($method), WPApiEndpoint::class);
 
-            $apiNamespaceAnnotation = $reader->getClassAnnotation($reflection, WPApiNamespace::class);
-
-            $apiEndpointAnnotation = $reader->getMethodAnnotation($reflection->getMethod($method), WPApiEndpoint::class);
-
-            if ($apiEndpointAnnotation !== null) {
-                $this->registerWPApiEndpoint($apiNamespaceAnnotation, $apiEndpointAnnotation, $reflection->getName(), $method);
+            if ($apiEndpointAttribute !== null) {
+                $this->registerWPApiEndpoint($apiNamespaceAttribute, $apiEndpointAttribute, $reflection->getName(), $method);
             } else {
                 $this->registerAdminEndpoint($className, $method);
             }
         }
         return $methods;
+    }
+
+    /**
+     * @template T of object
+     * @param \ReflectionClass<object>|\ReflectionMethod $reflector
+     * @param class-string<T> $attributeClass
+     * @return T|null
+     */
+    private function readAttribute(\ReflectionClass|\ReflectionMethod $reflector, string $attributeClass): ?object
+    {
+        $attributes = $reflector->getAttributes($attributeClass);
+        if ($attributes === []) {
+            return null;
+        }
+
+        return $attributes[0]->newInstance();
     }
 
     protected function executeEndPoint($method)
@@ -105,27 +114,27 @@ abstract class AbstractApiService extends AbstractService implements ApiServiceI
         }
     }
 
-    protected function registerWPApiEndpoint(WPApiNamespace $apiNamespaceAnnotation, WPApiEndpoint $apiEndpointAnnotation, $className, $method)
+    protected function registerWPApiEndpoint(?WPApiNamespace $apiNamespaceAttribute, WPApiEndpoint $apiEndpointAttribute, $className, $method)
     {
-        add_action('rest_api_init', function () use ($apiNamespaceAnnotation, $apiEndpointAnnotation, $className, $method) {
+        add_action('rest_api_init', function () use ($apiNamespaceAttribute, $apiEndpointAttribute, $className, $method) {
             $namespace = '';
 
-            if ($apiEndpointAnnotation->namespace) {
-                $namespace = $apiEndpointAnnotation->namespace;
-            } else if ($apiNamespaceAnnotation->namespace) {
-                $namespace = $apiNamespaceAnnotation->namespace;
+            if ($apiEndpointAttribute->namespace) {
+                $namespace = $apiEndpointAttribute->namespace;
+            } elseif ($apiNamespaceAttribute && $apiNamespaceAttribute->namespace) {
+                $namespace = $apiNamespaceAttribute->namespace;
             } else {
-                throw new AnnotationException('Missing namespace');
+                throw new \InvalidArgumentException('Missing namespace');
             }
 
-            $namespaceAndVersion = $namespace . '/' . $apiEndpointAnnotation->version;
+            $namespaceAndVersion = $namespace . '/' . $apiEndpointAttribute->version;
             $handler = [$this, $method];
 
-            $computedArgs = $this->recursiveBuildCallable($apiEndpointAnnotation->args);
+            $computedArgs = $this->recursiveBuildCallable($apiEndpointAttribute->args);
             $computedArgs = $this->addRequiredArguments($computedArgs);
             $computedArgs['callback'] = $handler;
 
-            register_rest_route($namespaceAndVersion, $apiEndpointAnnotation->url, $computedArgs);
+            register_rest_route($namespaceAndVersion, $apiEndpointAttribute->url, $computedArgs);
         });
     }
 
